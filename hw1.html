@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/84/three.min.js"></script>
+    <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        #info {
+            position: absolute;
+            width: 100%;
+            padding: 10px;
+            text-align: center;
+        }
+
+        body {
+            overflow: hidden
+        }
+    </style>
+</head>
+
+<body>
+    <div id="info">
+        <button id="button_start" style="width:10vw">Start</button>
+        <button id="button_reset" style="width:10vw">Reset</button>
+        <p style="color:aliceblue">Style</p>
+        <select id="clcok_style" style="width:10vw">
+            <option value="Analog">Analog</option>
+            <option value="Quartz">Quartz</option>
+            <option value="Sector">Sector</option>
+        </select>
+    </div>
+</body>
+</script>
+
+<script>
+    var renderer, camera, controls, scene;
+
+    init();
+    animate();
+
+
+    $("#button_start").click(function () {
+        turn = !turn;
+        var $this = $(this);
+        if ($this.text() == "Start")
+            $this.text('Stop');
+        else if ($this.text() == "Stop")
+            $this.text('Start');
+    });
+    $("#button_reset").click(function () {
+        turn = false;
+        angle = -Math.PI / 2;
+        quartzPosition = -Math.PI / 2 * 10;
+        theta = 6.3;
+        var $this = $("#button_start");
+        $this.text('Start');
+    })
+
+    $(document).on('change', '#clcok_style', function () {
+        if ($("#clcok_style").val() == "Analog") {
+            angle = -Math.PI / 2;
+            scene.remove(sector);
+            board = buildBoard();
+            scene.add(board);
+            sec.visible = true;
+            depot.visible = true;
+            isSector = false;
+            isAnalog = true;
+            isQuartz = false;
+        }
+        else if ($("#clcok_style").val() == "Quartz") {
+            board = buildBoard();
+            scene.add(board);
+            sec.visible = true;
+            isQuartz = true;
+            isAnalog = false;
+            isSector = false;
+        }
+        else if ($("#clcok_style").val() == "Sector") {
+            scene.remove(board);
+            sector = buildSector(theta);
+            scene.add(sector);
+            sec.visible = false;
+            isSector = true;
+            isAnalog = false;
+            isQuartz = false;
+            theta = 6.3;
+        }
+    });
+    function init() {
+
+        renderer = new THREE.WebGLRenderer({
+            antialias: true
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x000000);
+        document.body.appendChild(renderer.domElement);
+
+        camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 1000);
+        camera.position.x = 0;
+        camera.position.y = 250;
+        camera.position.z = 0;  // important
+
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        scene = new THREE.Scene();
+        light = new THREE.DirectionalLight(0xffffff, 2, 100);
+
+        window.addEventListener('resize', onWindowResize, false);
+
+        var gridXZ = new THREE.GridHelper(100, 10, 'red', 'white');
+        //scene.add(gridXZ);
+
+        board = buildBoard();
+        scene.add(board);
+
+
+        var center = buildCenter();
+        scene.add(center);
+
+        depot = buildDepot();
+        //scene.add(depot);
+
+        sec = buildSec();
+        scene.add(sec);
+    }
+
+    var angle = -Math.PI / 2;
+    var lightPosition = -Math.PI / 2;
+    var turn = false;
+    var theta = 6.3;
+    var isSector = false;
+    var isQuartz = false;
+    var isAnalog = true;
+    var quartzPosition = -Math.PI / 2 * 10;
+
+    function animate() {
+        var clock = new THREE.Clock();
+        var delta = clock.getDelta();
+
+        if (turn) {
+            if (isAnalog) {
+                angle += 0.0165 / Math.PI * 2 / 6; //我的螢幕每0.016 17秒刷新一次
+            }
+            if (isSector) {
+                theta -= 0.0165 / Math.PI * 4 / 6;
+            }
+            if (isQuartz) {
+                quartzPosition += (0.0165 / Math.PI * 2 / 6) * 10;
+            }
+        }
+
+        if (isAnalog) {
+            sec.position.set(20 * Math.cos(angle), 1, 20 * Math.sin(angle));
+            sec.rotation.y = -angle;
+        }
+
+        if (isSector) {
+            scene.remove(sector);
+            sector = buildSector(theta);
+            scene.add(sector);
+        }
+
+        if (isQuartz) {
+            sec.position.set(20 * Math.cos(Math.floor(quartzPosition) / 10), 1, 20 * Math.sin(Math.floor(quartzPosition) / 10));
+            sec.rotation.y = -Math.floor(quartzPosition) / 10;
+        }
+        lightPosition += 0.005;
+        light.position.set(40 * Math.cos(lightPosition), 80, 40 * Math.sin(lightPosition));
+
+        controls.update();
+        renderer.render(scene, camera);
+
+        scene.add(light);
+
+        requestAnimationFrame(animate);
+    }
+
+    function buildAOU(x, y, z) {
+        var aou = new THREE.Object3D();
+        var normalMat = new THREE.MeshNormalMaterial();
+        var geometry = new THREE.BoxBufferGeometry(10, 30, 10);
+        var column1 = new THREE.Mesh(geometry, normalMat);
+        var column2 = new THREE.Mesh(geometry, normalMat);
+        var row1 = new THREE.Mesh(new THREE.BoxBufferGeometry(30, 10, 10), normalMat);
+
+        column1.position.set(5, 15, 5);
+        column2.position.set(25, 15, 5);
+        row1.position.set(15, 5, 5);
+        aou.position.set(x, y, z);
+        aou.add(column1);
+        aou.add(column2);
+        aou.add(row1);
+
+        return aou;
+    }
+
+    function buildBoard() {
+        var boardMat = new THREE.MeshStandardMaterial({
+            color: 0x0065ff,
+        }); //版子顏色
+        var boardGeometry = new THREE.SphereGeometry(50, 32, 32);
+        var board = new THREE.Mesh(boardGeometry, boardMat);
+
+        return board;
+    }
+
+    function buildSector(mytheta) {
+        var sectorMat = new THREE.MeshStandardMaterial({
+            color: 0xff6500,
+        }); //版子顏色
+        var sectorGeometry = new THREE.CylinderGeometry(50, 50, 2, 64, 64, false, -Math.PI, mytheta); //版子大小
+        var sector = new THREE.Mesh(sectorGeometry, sectorMat);
+
+        return sector;
+    }
+
+    function buildCenter() {
+        var centerGeometry = new THREE.SphereGeometry(4, 32, 32);
+        var centerMat = new THREE.MeshStandardMaterial({ color: 0x0c1c3a });
+        var center = new THREE.Mesh(centerGeometry, centerMat);
+
+        center.position.y = 53;
+
+        return center;
+    }
+
+    function buildDepot() {
+        var depotGeometry = new THREE.SphereGeometry(2, 32, 32);
+        var depotMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        var depot = new THREE.Mesh(depotGeometry, depotMat);
+
+        depot.position.z = -50;
+
+        return depot;
+    }
+
+    function buildSec() {
+        var mySec = new THREE.Object3D(); //整個秒針
+
+        var secMat = new THREE.MeshStandardMaterial({ color: 0xaeb1b7 }); //秒針顏色
+        var secGeometry = new THREE.CylinderGeometry(2, 2, 30, 64); //秒針體積
+        var sec = new THREE.Mesh(secGeometry, secMat); //指針
+
+        var arrowMat = new THREE.MeshStandardMaterial({ color: 0xaeb1b7 }); //箭頭顏色
+        var arrowGeometry = new THREE.CylinderGeometry(0, 2, 5, 64);
+        var arrow = new THREE.Mesh(arrowGeometry, arrowMat);
+
+        sec.position.set(-2, 53, 0);
+        arrow.position.set(15.5, 53, 0);
+
+        sec.rotation.z = -Math.PI / 2;
+        arrow.rotation.z = -Math.PI / 2;
+
+        mySec.add(arrow);
+        mySec.add(sec);
+
+        return mySec;
+    }
+
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+</script>
+
+</html>
